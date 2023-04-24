@@ -25,9 +25,9 @@ class BaseModel(Model):
     class Meta:
         database = db
 
-
 ############################ Declaro TABLA:
 class Tabla(BaseModel):
+    
     id= AutoField() # Agregué el campo id
     fecha=DateField()
     tipo = CharField() # Esto es una restricción para que no se repitan los títulos.
@@ -36,8 +36,6 @@ class Tabla(BaseModel):
 
 db.connect()
 db.create_tables([Tabla])
-
-
 
 
 ############################ CRUD:
@@ -58,7 +56,7 @@ class Abmc():
             
             tree.insert("", "end", values=(tabla.fecha,tabla.tipo,tabla.monto,tabla.descripcion),tags=(tabla.tipo,))
             self.mensaje_alta()
-            self.vaciarcampos(fecha,tipo,monto,descripcion)
+            self.vaciarcampos(tipo,monto,descripcion)
             self.actualizar_tree(tree)
             # self.messagebox.showinfo("Lista de productos", "Producto agregado con éxito")
         except:
@@ -94,10 +92,10 @@ class Abmc():
             actualizar.execute()
             self.mensaje_modificar()
             self.actualizar_tree(tree)
-        self.vaciarcampos(fecha,tipo,monto,descripcion)
+        self.vaciarcampos(tipo,monto,descripcion)
         # self.messagebox.showinfo("Atención", "Producto modificado con éxito")
 
-    def vaciarcampos(self,fecha,tipo,monto,descripcion):
+    def vaciarcampos(self,tipo,monto,descripcion):
         tipo.set("")
         monto.set("")
         descripcion.set("")
@@ -113,8 +111,8 @@ class Abmc():
             self.mensaje_eliminarbd() 
             self.actualizar_tree(tree)
     
-    def nuevaTabla(self):
-        self.new_window = tk.Toplevel(tk.Tk())
+    def nueva_db(self):
+        self.new_window = tk.Toplevel()
         self.new_window.title("Crear nueva base de datos")
         
         # Etiqueta y entrada de texto para el nombre de usuario
@@ -126,12 +124,11 @@ class Abmc():
         tk.Button(self.new_window, text="Crear base de datos", command=self.create_db_with_username).grid(row=1, column=1, padx=5, pady=5)      
     
     def create_db_with_username(self):
-        # Obtener el nombre de usuario ingresado
         username = self.user_entry.get()
+        db.create_tables([Tabla(username)])
 
-        # Validar que se haya ingresado un nombre de usuario
         if not username:
-            messagebox.showerror("Error", "Debe ingresar un nombre de usuario")
+            messagebox.showerror("Error", "Debe ingresar un nombre a su Database")
             return
         # Crear la conexión a la base de datos con el nombre de usuario ingresado
         try:
@@ -141,6 +138,35 @@ class Abmc():
             messagebox.showerror("Error", f"No se pudo crear la base de datos: {str(e)}")
         self.new_window.destroy()
 
+    def cambiar_db(self):
+        self.conn = sqlite3.connect("database.db")
+        self.cursor = self.conn.cursor()
+        self.new_window = tk.Toplevel()
+        self.new_window.title("Seleccion de base de datos")
+        self.combo_db = ttk.Combobox(self.new_window, values=self.get_database_list())
+        self.combo_db.grid(row=0, column=0, padx=5, pady=5)
+        self.btn_change_db = tk.Button(self.new_window, text="Cambiar Base de Datos", command=self.change_database)
+        self.btn_change_db.grid(row=0, column=1, padx=5, pady=5)
+    
+    def get_database_list(self):
+        # Obtener la lista de las bases de datos disponibles
+        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = self.cursor.fetchall()
+        print(tables)
+        database_list = []
+        for table in tables:
+            database_list.append(table[0].split('.')[0])
+        return list(set(database_list))
+    
+    def change_database(self):
+        # Cambiar la base de datos
+        new_db_name = self.combo_db.get()
+        self.conn.close()
+        self.conn = sqlite3.connect(f"{new_db_name}.db")
+        self.cursor = self.conn.cursor()
+        messagebox.showinfo("Cambio de Base de Datos", f"Se ha cambiado a la base de datos {new_db_name}.db")
+        self.new_window.destroy()
+    
     @staticmethod
     def mensaje_alta():
         messagebox.showinfo("Atencion","Ingreso realizado con éxito")
@@ -151,10 +177,9 @@ class Abmc():
 
     @staticmethod
     def mensaje_modificar():
-        messagebox.showinfo("Atencion","Producto modificado con éxito")
+        messagebox.showinfo("Atencion","Registro modificado con éxito")
 
     @staticmethod
     def mensaje_eliminarbd():
         messagebox.showinfo("Atencion","Base de datos eliminada")
-
 

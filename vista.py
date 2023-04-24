@@ -38,9 +38,10 @@ class Vista():
         menu_archivo = Menu(menubar, tearoff=0)
         # menu_archivo.add_command(label="Eliminar base de datos", command=self.objeto_base.eliminar_bd(self.tree)) # Cambié el "tree" por el "self.tree"
         
+        menu_archivo.add_command(label="Crear nueva base", command=lambda: self.objeto_base.nueva_db())
+        menu_archivo.add_command(label="Cambiar base", command=lambda: self.objeto_base.cambiar_db())
         menu_archivo.add_command(label="Eliminar base de datos", command=lambda: self.objeto_base.eliminar_bd(self.tree))
         menu_archivo.add_command(label="Salir", command=lambda: self.objeto_base.salir(self.master))
-        menu_archivo.add_command(label="Crear nueva base", command=lambda: self.objeto_base.nuevaTabla())
         menubar.add_cascade(label="Archivo", menu=menu_archivo)
 
 
@@ -89,7 +90,7 @@ class Vista():
         botonagregar = Button(self.master,text="Agregar", width=10, command=lambda: self.objeto_base.agregar(entryfecha1.get_date().strftime('%d-%m-%Y'),self.tipo,self.monto,self.descripcion,self.tree))
         botonagregar.grid(row=1, column=3, padx=20)
         
-        botonmostrar = Button(self.master,text="Actualizar",width=10,command=lambda: self.objeto_base.mostrar(self.tree))
+        botonmostrar = Button(self.master,text="Ver Datos",width=10,command=lambda: self.objeto_base.mostrar(self.tree))
         botonmostrar.grid(row=2, column=3, padx=20)
         
         botonmodificar = Button(self.master, text="Editar", width=10, command=lambda: self.objeto_base.modificar(entryfecha1.get_date().strftime('%d-%m-%Y'),self.tipo,self.monto,self.descripcion,self.tree))
