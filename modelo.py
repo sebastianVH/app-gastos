@@ -1,14 +1,12 @@
 from tkinter.messagebox import showerror
 from tkinter.messagebox import showinfo
 from tkinter.messagebox import askyesno
-from tkinter import messagebox
+from tkinter import messagebox, filedialog,Toplevel,ttk
 from datetime import date,datetime
 from tkcalendar import DateEntry
-from tkinter import Toplevel
 import tkinter as tkint
 from tkinter import *
 
-from tkinter import ttk
 from sqlite3 import *
 import sqlite3
 from peewee import *
@@ -34,6 +32,8 @@ class Tabla(BaseModel):
     monto = FloatField()
     descripcion = CharField(max_length=100)
 
+tables=[Tabla]
+
 db.connect()
 db.create_tables([Tabla])
 
@@ -44,9 +44,8 @@ class Abmc():
     def __init__(self) -> None: pass
         
     def agregar(self, fecha,tipo,monto,descripcion,tree):
-        print("Fecha de la tabla:" ,fecha)
+        
         try:
-            
             tabla = Tabla()
             tabla.fecha = fecha
             tabla.tipo = tipo.get()
@@ -58,7 +57,6 @@ class Abmc():
             self.mensaje_alta()
             self.vaciarcampos(tipo,monto,descripcion)
             self.actualizar_tree(tree)
-            # self.messagebox.showinfo("Lista de productos", "Producto agregado con éxito")
         except:
             pass
 
@@ -132,12 +130,12 @@ class Abmc():
             return
         # Crear la conexión a la base de datos con el nombre de usuario ingresado
         try:
-            conn = sqlite3.connect(f"{username}.db")
+            conn = db.connect(f"{username}.db")
             messagebox.showinfo("Base de datos creada", f"Se ha creado la base de datos {username}.db")
         except sqlite3.Error as e:
             messagebox.showerror("Error", f"No se pudo crear la base de datos: {str(e)}")
         self.new_window.destroy()
-
+        
     def cambiar_db(self):
         self.conn = sqlite3.connect("database.db")
         self.cursor = self.conn.cursor()
@@ -147,10 +145,10 @@ class Abmc():
         self.combo_db.grid(row=0, column=0, padx=5, pady=5)
         self.btn_change_db = tk.Button(self.new_window, text="Cambiar Base de Datos", command=self.change_database)
         self.btn_change_db.grid(row=0, column=1, padx=5, pady=5)
-    
+
     def get_database_list(self):
         # Obtener la lista de las bases de datos disponibles
-        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        self.cursor.execute("SELECT name FROM sqlite_master;")
         tables = self.cursor.fetchall()
         print(tables)
         database_list = []
@@ -182,4 +180,8 @@ class Abmc():
     @staticmethod
     def mensaje_eliminarbd():
         messagebox.showinfo("Atencion","Base de datos eliminada")
+    
+    @staticmethod
+    def mensaje_revisar():
+        messagebox.showerror("Atencion","Revise los campos que ingreso")
 
