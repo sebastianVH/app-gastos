@@ -13,8 +13,6 @@ from peewee import *
 
 from controlador import *
 
-import re
-from reg8 import Validar
 
 db = SqliteDatabase("database.db")
 
@@ -43,7 +41,7 @@ db.create_tables([Tabla])
 class Abmc():
     def __init__(self) -> None: pass
         
-    def agregar(self, fecha,tipo,monto,descripcion,tree):
+    def agregar(self, fecha,tipo,monto,descripcion,tree,balance_label):
         
         try:
             tabla = Tabla()
@@ -56,17 +54,20 @@ class Abmc():
             tree.insert("", "end", values=(tabla.fecha,tabla.tipo,tabla.monto,tabla.descripcion),tags=(tabla.tipo,))
             self.mensaje_alta()
             self.vaciarcampos(tipo,monto,descripcion)
+            self.calcular_balance(tree,balance_label)
             self.actualizar_tree(tree)
         except:
             pass
 
-    def borrar(self, tree):
+    def borrar(self, tree,balance_label):
         valor = tree.selection()
         item = tree.item(valor)
         borrar = Tabla.get(Tabla.id == item["text"]) 
         if askyesno("Atención", "¿Desea confirmar?"):
             borrar.delete_instance()
             tree.delete(valor)
+            self.mensaje_borrar()
+        self.calcular_balance(tree,balance_label)
         self.actualizar_tree(tree)
 
     def actualizar_tree(self, treeview):
@@ -77,11 +78,13 @@ class Abmc():
         # Extraigo datos:
         for row in Tabla.select(): # Esto me traerá todo lo que tenga la tabla "Productos"
             treeview.insert("", "end", text=row.id, values=(row.fecha,row.tipo,row.monto,row.descripcion),tags=(row.tipo))
-
-    def mostrar(self, tree):
+        
+        
+    def mostrar(self, tree, balance_label):
         self.actualizar_tree(tree)
+        self.calcular_balance(tree,balance_label)
 
-    def modificar(self, fecha,tipo,monto,descripcion, tree): # Tuve que agregar producto y precio acá
+    def modificar(self, fecha,tipo,monto,descripcion, tree,balance_label): # Tuve que agregar producto y precio acá
         valor1 = tree.selection()
         registros = tree.item(valor1)
         mi_id = registros["text"]
@@ -90,6 +93,7 @@ class Abmc():
             actualizar.execute()
             self.mensaje_modificar()
             self.actualizar_tree(tree)
+            self.calcular_balance(tree,balance_label)
         self.vaciarcampos(tipo,monto,descripcion)
         # self.messagebox.showinfo("Atención", "Producto modificado con éxito")
 
@@ -150,7 +154,6 @@ class Abmc():
         # Obtener la lista de las bases de datos disponibles
         self.cursor.execute("SELECT name FROM sqlite_master;")
         tables = self.cursor.fetchall()
-        print(tables)
         database_list = []
         for table in tables:
             database_list.append(table[0].split('.')[0])
@@ -164,6 +167,18 @@ class Abmc():
         self.cursor = self.conn.cursor()
         messagebox.showinfo("Cambio de Base de Datos", f"Se ha cambiado a la base de datos {new_db_name}.db")
         self.new_window.destroy()
+        
+    def calcular_balance(self,tree,balance_label):
+        ingresos = 0.0
+        egresos = 0.0
+        for item in tree.get_children():
+            tags = tree.item(item)['tags']
+            if 'Ingreso' in tags:
+                ingresos += float(tree.item(item)['values'][2])
+            elif 'Egreso' in tags:
+                egresos += float(tree.item(item)['values'][2])
+        balance = ingresos - egresos
+        balance_label.config(text=f"Balance: {balance:.2f}")
     
     @staticmethod
     def mensaje_alta():

@@ -1,7 +1,8 @@
-from tkinter import Tk
+from tkinter import Tk,ttk
 import tkinter as tk
 
-import vista
+import vista,modelo
+
 
 # Mi controlador puede pasarle mi ventana a ventanita. Lo que crea la parte visual...
 
