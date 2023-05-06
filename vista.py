@@ -100,7 +100,7 @@ class Vista():
         entrydescripcion1.place(x=120, y=90)
         
         balance_label = Label(self.master, text="Balance: 0.00")
-        balance_label.place(x=30, y=580) # o utiliza el método grid() si lo prefieres
+        balance_label.place(x=30, y=560) # o utiliza el método grid() si lo prefieres
 
 
         botonagregar = Button(self.master,text="Agregar", width=10, command=lambda: self.objeto_base.agregar(entryfecha1.get_date().strftime('%d-%m-%Y'),self.tipo,self.monto,self.descripcion,self.tree, balance_label))
