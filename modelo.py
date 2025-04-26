@@ -1,25 +1,14 @@
-from tkinter.messagebox import showerror
-from tkinter.messagebox import showinfo
-from tkinter.messagebox import askyesno
-from tkinter import messagebox, filedialog,Toplevel,ttk
-from datetime import date,datetime
-from tkcalendar import DateEntry
+import datetime
+from tkinter.messagebox import showerror,showinfo,askyesno
+from tkinter import messagebox, filedialog
 import tkinter as tkint
-from tkinter import *
 
-from sqlite3 import *
-import sqlite3
-from peewee import *
+from peewee import SqliteDatabase, Model, CharField, FloatField, DateField, AutoField
 
-from controlador import *
-
-
-db = SqliteDatabase("database.db")
 
 ############################ Declaro BASE:
 class BaseModel(Model):
-    class Meta:
-        database = db
+    pass
 
 ############################ Declaro TABLA:
 class Tabla(BaseModel):
@@ -32,40 +21,46 @@ class Tabla(BaseModel):
 
 tables=[Tabla]
 
-db.connect()
-db.create_tables([Tabla])
-
 
 ############################ CRUD:
 
 class Abmc():
-    def __init__(self) -> None: pass
+    def __init__(self) -> None:
+        self.conn = None
+        self.db = None
+        self.cursor = None
         
     def agregar(self, fecha,tipo,monto,descripcion,tree,balance_label):
         
         try:
             tabla = Tabla()
-            tabla.fecha = fecha
+
+            tabla.fecha = fecha.get_date().strftime('%d-%m-%Y')
             tabla.tipo = tipo.get()
             tabla.monto = monto.get()
             tabla.descripcion = descripcion.get()
+            if not tipo.get() or not monto.get() or not descripcion.get():
+                return self.mensaje_revisar()
             tabla.save()
             
             tree.insert("", "end", values=(tabla.fecha,tabla.tipo,tabla.monto,tabla.descripcion),tags=(tabla.tipo,))
             self.mensaje_alta()
-            self.vaciarcampos(tipo,monto,descripcion)
+            self.vaciarcampos(tipo,monto,descripcion,fecha)
             self.calcular_balance(tree,balance_label)
             self.actualizar_tree(tree)
         except:
             pass
 
     def borrar(self, tree,balance_label):
-        valor = tree.selection()
-        item = tree.item(valor)
+        fila = tree.selection()
+        if not fila:
+            self.mensaje_fila()# Si no selecciona una fila, le aviso que seleccione una fila
+            return
+        item = tree.item(fila)
         borrar = Tabla.get(Tabla.id == item["text"]) 
         if askyesno("Atención", "¿Desea confirmar?"):
             borrar.delete_instance()
-            tree.delete(valor)
+            tree.delete(fila)
             self.mensaje_borrar()
         self.calcular_balance(tree,balance_label)
         self.actualizar_tree(tree)
@@ -76,7 +71,7 @@ class Abmc():
         for elemento in registros:
             treeview.delete(elemento)
         # Extraigo datos:
-        for row in Tabla.select(): # Esto me traerá todo lo que tenga la tabla "Productos"
+        for row in Tabla.select(): # Esto me traerá todo lo que tenga la tabla
             treeview.insert("", "end", text=row.id, values=(row.fecha,row.tipo,row.monto,row.descripcion),tags=(row.tipo))
         
         
@@ -85,88 +80,96 @@ class Abmc():
         self.calcular_balance(tree,balance_label)
 
     def modificar(self, fecha,tipo,monto,descripcion, tree,balance_label): # Tuve que agregar producto y precio acá
-        valor1 = tree.selection()
-        registros = tree.item(valor1)
+        fila = tree.selection()
+        if not fila:
+            self.mensaje_fila()# Si no selecciona una fila, le aviso que seleccione una fila
+            return
+        registros = tree.item(fila)
         mi_id = registros["text"]
-        actualizar = Tabla.update(fecha = fecha, tipo = tipo.get(), monto = monto.get(),descripcion = descripcion.get()).where(Tabla.id == mi_id)
+        actualizar = Tabla.update(fecha = fecha.get_date().strftime('%d-%m-%Y'), tipo = tipo.get(), monto = monto.get(),descripcion = descripcion.get()).where(Tabla.id == mi_id)
         if askyesno("Atencion","¿Desea confirmar la modificacion?"):
             actualizar.execute()
             self.mensaje_modificar()
             self.actualizar_tree(tree)
             self.calcular_balance(tree,balance_label)
-        self.vaciarcampos(tipo,monto,descripcion)
-        # self.messagebox.showinfo("Atención", "Producto modificado con éxito")
+        self.vaciarcampos(tipo,monto,descripcion,fecha)
 
-    def vaciarcampos(self,tipo,monto,descripcion):
+    def vaciarcampos(self,tipo,monto,descripcion,fecha):
         tipo.set("")
         monto.set("")
         descripcion.set("")
+        today = datetime.datetime.now().strftime("%d-%m-%Y") # Cambié el formato de la fecha
+        fecha.set_date(today)
 
     def salir(self,master):
-        if self.askyesno("Atención", "¿Desea salir?"):
+        if askyesno("Atención", "¿Desea salir?"):
             master.quit() # cambié el "quit" por el "destroy" 
 
     def eliminar_bd(self, tree): # Intento definir el "eliminar_bd"
-        if askyesno("Atencion","Desea borrar la base de datos?"):
-            #db.drop_tables(Tabla) # se elimina la tabla directamente de la base de datos
+        if askyesno("Atencion","Desea borrar la planilla de datos?"):
+            #db.drop_tables(Tabla) # se elimina la tabla directamente de la planilla de datos
             Tabla.truncate_table() #con truncate, borramos todos los registros de la tabla
             self.mensaje_eliminarbd() 
             self.actualizar_tree(tree)
     
     def nueva_db(self):
-        self.new_window = tk.Toplevel()
-        self.new_window.title("Crear nueva base de datos")
+        self.new_window = tkint.Toplevel()
+        self.new_window.title("Crear nueva planilla de datos")
         
         # Etiqueta y entrada de texto para el nombre de usuario
-        tk.Label(self.new_window, text="Ingrese un nombre de la DataBase:").grid(row=0, column=0, padx=5, pady=5)
-        self.user_entry = tk.Entry(self.new_window)
+        tkint.Label(self.new_window, text="Ingrese un nombre de la planilla:").grid(row=0, column=0, padx=5, pady=5)
+        self.user_entry = tkint.Entry(self.new_window)
         self.user_entry.grid(row=0, column=1, padx=5, pady=5)
         
-        # Botón para crear la base de datos con el nombre ingresado
-        tk.Button(self.new_window, text="Crear base de datos", command=self.create_db_with_username).grid(row=1, column=1, padx=5, pady=5)      
+        # Botón para crear la planilla de datos con el nombre ingresado
+        tkint.Button(self.new_window, text="Crear planilla de datos", command=self.create_db_with_username).grid(row=1, column=1, padx=5, pady=5)      
     
     def create_db_with_username(self):
-        username = self.user_entry.get()
-        db.create_tables([Tabla(username)])
+        user_input = self.user_entry.get()
 
-        if not username:
+        if not user_input:
             messagebox.showerror("Error", "Debe ingresar un nombre a su Database")
             return
-        # Crear la conexión a la base de datos con el nombre de usuario ingresado
+        # Crear la conexión a la planilla de datos con el nombre de usuario ingresado
         try:
-            conn = db.connect(f"{username}.db")
-            messagebox.showinfo("Base de datos creada", f"Se ha creado la base de datos {username}.db")
-        except sqlite3.Error as e:
-            messagebox.showerror("Error", f"No se pudo crear la base de datos: {str(e)}")
+            self.db = SqliteDatabase(f"{user_input}.db")
+            self.conn = self.db.connect(f"{user_input}.db")
+            Tabla._meta.database = self.db
+            self.db.create_tables([Tabla])
+            messagebox.showinfo("planilla de datos creada", f"Se ha creado la planilla de datos {user_input}")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo crear la planilla de datos: {str(e)}")
         self.new_window.destroy()
         
-    def cambiar_db(self):
-        self.conn = sqlite3.connect("database.db")
-        self.cursor = self.conn.cursor()
-        self.new_window = tk.Toplevel()
-        self.new_window.title("Seleccion de base de datos")
-        self.combo_db = ttk.Combobox(self.new_window, values=self.get_database_list())
-        self.combo_db.grid(row=0, column=0, padx=5, pady=5)
-        self.btn_change_db = tk.Button(self.new_window, text="Cambiar Base de Datos", command=self.change_database)
-        self.btn_change_db.grid(row=0, column=1, padx=5, pady=5)
+    def cambiar_db(self, tree):
+        pathfile = self.select_database()
+        if not pathfile:
+            return
+        if not pathfile.endswith('.db'):
+            messagebox.showerror("Error", "El archivo seleccionado no es una planilla de datos válida. (finaliza en .db)")
+            return
+        if self.conn:
+            self.db = SqliteDatabase(pathfile)
+            self.conn = self.db.connect()
+            self.cursor = self.db.cursor()
+            Tabla._meta.database = self.db
+            self.db.create_tables(Tabla)
+            messagebox.showinfo("Cambio de planilla de datos", f"Se ha cambiado a la planilla de datos: {pathfile.split('/')[-1]}")
+            self.actualizar_tree(tree)
 
-    def get_database_list(self):
-        # Obtener la lista de las bases de datos disponibles
-        self.cursor.execute("SELECT name FROM sqlite_master;")
-        tables = self.cursor.fetchall()
-        database_list = []
-        for table in tables:
-            database_list.append(table[0].split('.')[0])
-        return list(set(database_list))
-    
-    def change_database(self):
-        # Cambiar la base de datos
-        new_db_name = self.combo_db.get()
-        self.conn.close()
-        self.conn = sqlite3.connect(f"{new_db_name}.db")
-        self.cursor = self.conn.cursor()
-        messagebox.showinfo("Cambio de Base de Datos", f"Se ha cambiado a la base de datos {new_db_name}.db")
-        self.new_window.destroy()
+    def select_database(self) -> None:
+
+        file_path = filedialog.askopenfilename(
+            title="Seleccionar planilla de datos",
+            filetypes=[("Archivos de planilla de datos", "*.db")]
+        )
+        if not file_path:
+            messagebox.showerror("Error", "No se seleccionó ningún archivo.")
+            return None
+        if not file_path.endswith('.db'):
+            messagebox.showerror("Error", "El archivo seleccionado no es una planilla de datos válida.")
+            return None
+        return file_path
         
     def calcular_balance(self,tree,balance_label):
         ingresos = 0.0
@@ -182,21 +185,25 @@ class Abmc():
     
     @staticmethod
     def mensaje_alta():
-        messagebox.showinfo("Atencion","Ingreso realizado con éxito")
+       showinfo("Atencion","Ingreso realizado con éxito")
 
     @staticmethod
     def mensaje_borrar():
-        messagebox.showinfo("Atencion","Registro eliminado con éxito")
+       showinfo("Atencion","Registro eliminado con éxito")
 
     @staticmethod
     def mensaje_modificar():
-        messagebox.showinfo("Atencion","Registro modificado con éxito")
+       showinfo("Atencion","Registro modificado con éxito")
 
     @staticmethod
     def mensaje_eliminarbd():
-        messagebox.showinfo("Atencion","Base de datos eliminada")
+       showinfo("Atencion","planilla de datos eliminada")
     
     @staticmethod
     def mensaje_revisar():
-        messagebox.showerror("Atencion","Revise los campos que ingreso")
+       showerror("Atencion","Revise los campos que ingreso")
+        
+    @staticmethod
+    def mensaje_fila():
+       showerror("Atencion","Seleccione una fila")
 

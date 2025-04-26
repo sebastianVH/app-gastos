@@ -1,0 +1,8 @@
+# Ignorar carpetas de distribución y construcción
+dist/
+build/
+*.db
+__pycache__/
+# Ignorar archivos de configuración de IDE
+.idea/
+.vscode/
