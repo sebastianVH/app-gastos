@@ -1,48 +1,40 @@
-import tkinter as tk
 import sqlite3
-from tkinter import messagebox
+import tkinter as tk
+from tkinter import ttk
 
-class MainApp(tk.Tk):
+class MyApp:
     def __init__(self):
-        super().__init__()
-        self.title("Ejemplo de creación de base de datos")
-        
-        # Botón para crear una nueva base de datos
-        self.btn_new_db = tk.Button(self, text="Crear nueva base de datos", command=self.create_new_db)
-        self.btn_new_db.pack(pady=10)
+        self.db_name = 'mi_basededatos.db'
+        self.conn = sqlite3.connect(self.db_name)
+        self.cursor = self.conn.cursor()
 
-    def create_new_db(self):
-        # Crear una nueva ventana
-        self.new_window = tk.Toplevel(self)
-        self.new_window.title("Crear nueva base de datos")
-        
-        # Etiqueta y entrada de texto para el nombre de usuario
-        tk.Label(self.new_window, text="Ingrese un nombre de usuario:").grid(row=0, column=0, padx=5, pady=5)
-        self.user_entry = tk.Entry(self.new_window)
-        self.user_entry.grid(row=0, column=1, padx=5, pady=5)
-        
-        # Botón para crear la base de datos con el nombre ingresado
-        tk.Button(self.new_window, text="Crear base de datos", command=self.create_db_with_username).grid(row=1, column=1, padx=5, pady=5)
+        self.root = tk.Tk()
+        self.root.title("Mi aplicación")
 
-    def create_db_with_username(self):
-        # Obtener el nombre de usuario ingresado
-        username = self.user_entry.get()
+        # Crear el combobox con las opciones de las bases de datos
+        self.combo_db = ttk.Combobox(self.root, values=self.get_database_list())
+        self.combo_db.grid(row=0, column=0, padx=5, pady=5)
+        self.combo_db.current(0) # selecciona el primer valor por defecto
 
-        # Validar que se haya ingresado un nombre de usuario
-        if not username:
-            messagebox.showerror("Error", "Debe ingresar un nombre de usuario")
-            return
-        
-        # Crear la conexión a la base de datos con el nombre de usuario ingresado
-        try:
-            conn = sqlite3.connect(f"{username}.db")
-            messagebox.showinfo("Base de datos creada", f"Se ha creado la base de datos {username}.db")
-        except sqlite3.Error as e:
-            messagebox.showerror("Error", f"No se pudo crear la base de datos: {str(e)}")
-        
-        # Cerrar la ventana de ingreso de nombre de usuario
-        self.new_window.destroy()
+        # Crear botón para cambiar la base de datos
+        self.btn_change_db = tk.Button(self.root, text="Cambiar Base de Datos", command=self.change_database)
+        self.btn_change_db.grid(row=0, column=1, padx=5, pady=5)
 
-if __name__ == "__main__":
-    app = MainApp()
-    app.mainloop()
+        self.root.mainloop()
+
+    def get_database_list(self):
+        # Obtener la lista de las bases de datos disponibles
+        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = self.cursor.fetchall()
+        database_list = []
+        for table in tables:
+            database_list.append(table[0].split('.')[0])
+        return list(set(database_list))
+
+    def change_database(self):
+        # Cambiar la base de datos
+        new_db_name = self.combo_db.get()
+        self.conn.close()
+        self.conn = sqlite3.connect(f"{new_db_name}.db")
+        self.cursor = self.conn.cursor()
+        messagebox.showinfo("Cambio de Base de Datos", f"Se ha cambiado a la base de datos {new_db_name}.db")
