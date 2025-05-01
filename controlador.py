@@ -21,6 +21,7 @@ class Controller:
         db = SqliteDatabase(database)
         self.objeto_base.conn = db.connect()
         self.objeto_base.cursor = db.cursor()
+        self.main_controller.title(f"Control de gastos - {database.split('/')[-1]}")
         modelo.Tabla._meta.database = db
         db.create_tables(modelo.Tabla)
         self.objeto_base.actualizar_tree(self.objeto_vista.tree)

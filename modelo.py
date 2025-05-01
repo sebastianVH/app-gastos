@@ -18,6 +18,7 @@ class Tabla(BaseModel):
     tipo = CharField() # Esto es una restricción para que no se repitan los títulos.
     monto = FloatField()
     descripcion = CharField(max_length=100)
+    moneda = CharField(max_length=3, choices=[("ARS", "Pesos"), ("USD", "Dólares")], default="ARS") # Agregué el campo moneda con opciones
 
 tables=[Tabla]
 
@@ -30,7 +31,7 @@ class Abmc():
         self.db = None
         self.cursor = None
         
-    def agregar(self, fecha,tipo,monto,descripcion,tree,balance_label):
+    def agregar(self, fecha,tipo,monto,descripcion,moneda,tree,balance_pesos_label, balance_dolares_label):
         
         try:
             tabla = Tabla()
@@ -39,19 +40,20 @@ class Abmc():
             tabla.tipo = tipo.get()
             tabla.monto = monto.get()
             tabla.descripcion = descripcion.get()
+            tabla.moneda = moneda.get()
             if not tipo.get() or not monto.get() or not descripcion.get():
                 return self.mensaje_revisar()
             tabla.save()
             
-            tree.insert("", "end", values=(tabla.fecha,tabla.tipo,tabla.monto,tabla.descripcion),tags=(tabla.tipo,))
+            tree.insert("", "end", values=(tabla.fecha,tabla.tipo,tabla.monto,tabla.descripcion, tabla.moneda),tags=(tabla.tipo,))
             self.mensaje_alta()
-            self.vaciarcampos(tipo,monto,descripcion,fecha)
-            self.calcular_balance(tree,balance_label)
+            self.vaciarcampos(tipo,monto,descripcion,fecha,moneda)
+            self.calcular_balance(tree,balance_pesos_label, balance_dolares_label)
             self.actualizar_tree(tree)
         except:
             pass
 
-    def borrar(self, tree,balance_label):
+    def borrar(self, tree,balance_pesos_label, balance_dolares_label):
         fila = tree.selection()
         if not fila:
             self.mensaje_fila()# Si no selecciona una fila, le aviso que seleccione una fila
@@ -62,7 +64,7 @@ class Abmc():
             borrar.delete_instance()
             tree.delete(fila)
             self.mensaje_borrar()
-        self.calcular_balance(tree,balance_label)
+        self.calcular_balance(tree,balance_pesos_label, balance_dolares_label)
         self.actualizar_tree(tree)
 
     def actualizar_tree(self, treeview):
@@ -72,32 +74,33 @@ class Abmc():
             treeview.delete(elemento)
         # Extraigo datos:
         for row in Tabla.select(): # Esto me traerá todo lo que tenga la tabla
-            treeview.insert("", "end", text=row.id, values=(row.fecha,row.tipo,row.monto,row.descripcion),tags=(row.tipo))
+            treeview.insert("", "end", text=row.id, values=(row.fecha,row.tipo,row.monto,row.descripcion,row.moneda),tags=(row.tipo,row.moneda))
         
         
-    def mostrar(self, tree, balance_label):
+    def mostrar(self, tree, balance_pesos_label, balance_dolares_label):
         self.actualizar_tree(tree)
-        self.calcular_balance(tree,balance_label)
+        self.calcular_balance(tree,balance_pesos_label, balance_dolares_label)
 
-    def modificar(self, fecha,tipo,monto,descripcion, tree,balance_label): # Tuve que agregar producto y precio acá
+    def modificar(self, fecha,tipo,monto,descripcion,moneda, tree, balance_pesos_label, balance_dolares_label): 
         fila = tree.selection()
         if not fila:
             self.mensaje_fila()# Si no selecciona una fila, le aviso que seleccione una fila
             return
         registros = tree.item(fila)
         mi_id = registros["text"]
-        actualizar = Tabla.update(fecha = fecha.get_date().strftime('%d-%m-%Y'), tipo = tipo.get(), monto = monto.get(),descripcion = descripcion.get()).where(Tabla.id == mi_id)
+        actualizar = Tabla.update(fecha = fecha.get_date().strftime('%d-%m-%Y'), tipo = tipo.get(), monto = monto.get(),descripcion = descripcion.get(), moneda=moneda.get()).where(Tabla.id == mi_id)
         if askyesno("Atencion","¿Desea confirmar la modificacion?"):
             actualizar.execute()
             self.mensaje_modificar()
             self.actualizar_tree(tree)
-            self.calcular_balance(tree,balance_label)
-        self.vaciarcampos(tipo,monto,descripcion,fecha)
+            self.calcular_balance(tree,balance_pesos_label, balance_dolares_label)
+        self.vaciarcampos(tipo,monto,descripcion,fecha,moneda)
 
-    def vaciarcampos(self,tipo,monto,descripcion,fecha):
+    def vaciarcampos(self,tipo,monto,descripcion,fecha,moneda):
         tipo.set("")
         monto.set("")
         descripcion.set("")
+        moneda.set("")
         today = datetime.datetime.now().strftime("%d-%m-%Y") # Cambié el formato de la fecha
         fecha.set_date(today)
 
@@ -107,12 +110,11 @@ class Abmc():
 
     def eliminar_bd(self, tree): # Intento definir el "eliminar_bd"
         if askyesno("Atencion","Desea borrar la planilla de datos?"):
-            #db.drop_tables(Tabla) # se elimina la tabla directamente de la planilla de datos
             Tabla.truncate_table() #con truncate, borramos todos los registros de la tabla
             self.mensaje_eliminarbd() 
             self.actualizar_tree(tree)
     
-    def nueva_db(self):
+    def nueva_db(self, master):
         self.new_window = tkint.Toplevel()
         self.new_window.title("Crear nueva planilla de datos")
         
@@ -120,13 +122,11 @@ class Abmc():
         tkint.Label(self.new_window, text="Ingrese un nombre de la planilla:").grid(row=0, column=0, padx=5, pady=5)
         self.user_entry = tkint.Entry(self.new_window)
         self.user_entry.grid(row=0, column=1, padx=5, pady=5)
-        
         # Botón para crear la planilla de datos con el nombre ingresado
-        tkint.Button(self.new_window, text="Crear planilla de datos", command=self.create_db_with_username).grid(row=1, column=1, padx=5, pady=5)      
+        tkint.Button(self.new_window, text="Crear planilla de datos", command=self.create_db_with_username(master)).grid(row=1, column=1, padx=5, pady=5)      
     
-    def create_db_with_username(self):
+    def create_db_with_username(self,master):
         user_input = self.user_entry.get()
-
         if not user_input:
             messagebox.showerror("Error", "Debe ingresar un nombre a su Database")
             return
@@ -137,11 +137,12 @@ class Abmc():
             Tabla._meta.database = self.db
             self.db.create_tables([Tabla])
             messagebox.showinfo("planilla de datos creada", f"Se ha creado la planilla de datos {user_input}")
+            master.title(f"Control de gastos - {user_input}.db")
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo crear la planilla de datos: {str(e)}")
         self.new_window.destroy()
         
-    def cambiar_db(self, tree):
+    def cambiar_db(self, tree, master):
         pathfile = self.select_database()
         if not pathfile:
             return
@@ -155,6 +156,7 @@ class Abmc():
             Tabla._meta.database = self.db
             self.db.create_tables(Tabla)
             messagebox.showinfo("Cambio de planilla de datos", f"Se ha cambiado a la planilla de datos: {pathfile.split('/')[-1]}")
+            master.title(f"Control de gastos - {pathfile.split('/')[-1]}")
             self.actualizar_tree(tree)
 
     def select_database(self) -> None:
@@ -171,17 +173,25 @@ class Abmc():
             return None
         return file_path
         
-    def calcular_balance(self,tree,balance_label):
-        ingresos = 0.0
-        egresos = 0.0
+    def calcular_balance(self,tree,balance_pesos_label, balance_dolares_label):
+        ars_ingresos= 0.0
+        ars_egresos = 0.0
+        usd_ingresos = 0.0
+        usd_egresos = 0.0
         for item in tree.get_children():
             tags = tree.item(item)['tags']
-            if 'Ingreso' in tags:
-                ingresos += float(tree.item(item)['values'][2])
-            elif 'Egreso' in tags:
-                egresos += float(tree.item(item)['values'][2])
-        balance = ingresos - egresos
-        balance_label.config(text=f"Balance: {balance:.2f}")
+            if 'Ingreso' in tags and 'ARS' in tags:
+                ars_ingresos += float(tree.item(item)['values'][2])
+            elif 'Ingreso' in tags and 'USD' in tags:
+                usd_ingresos += float(tree.item(item)['values'][2])
+            elif 'Egreso' in tags and 'ARS' in tags:
+                ars_egresos += float(tree.item(item)['values'][2])
+            elif 'Egreso' in tags and 'USD' in tags:
+                usd_egresos += float(tree.item(item)['values'][2])
+        balance_pesos = ars_ingresos - ars_egresos
+        balance_dolares = usd_ingresos - usd_egresos
+        balance_pesos_label.config(text=f"Balance ARS: {balance_pesos:.2f}")
+        balance_dolares_label.config(text=f"Balance USD: {balance_dolares:.2f}")
     
     @staticmethod
     def mensaje_alta():
