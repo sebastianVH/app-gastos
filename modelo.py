@@ -31,7 +31,7 @@ class Abmc():
         self.db = None
         self.cursor = None
         
-    def agregar(self, fecha,tipo,monto,descripcion,moneda,tree,balance_pesos_label, balance_dolares_label):
+    def agregar(self, fecha,tipo,monto,descripcion,moneda,tree,balance_pesos_label, balance_dolares_label, ingreso_ars, egreso_ars, ingreso_usd, egreso_usd):
         
         try:
             tabla = Tabla()
@@ -48,12 +48,12 @@ class Abmc():
             tree.insert("", "end", values=(tabla.fecha,tabla.tipo,tabla.monto,tabla.descripcion, tabla.moneda),tags=(tabla.tipo,))
             self.mensaje_alta()
             self.vaciarcampos(tipo,monto,descripcion,fecha,moneda)
-            self.calcular_balance(tree,balance_pesos_label, balance_dolares_label)
+            self.calcular_balance(tree,balance_pesos_label, balance_dolares_label, ingreso_ars, egreso_ars, ingreso_usd, egreso_usd)
             self.actualizar_tree(tree)
         except:
             pass
 
-    def borrar(self, tree,balance_pesos_label, balance_dolares_label):
+    def borrar(self, tree, balance_pesos_label, balance_dolares_label, ingreso_ars, egreso_ars, ingreso_usd, egreso_usd):
         fila = tree.selection()
         if not fila:
             self.mensaje_fila()# Si no selecciona una fila, le aviso que seleccione una fila
@@ -64,7 +64,7 @@ class Abmc():
             borrar.delete_instance()
             tree.delete(fila)
             self.mensaje_borrar()
-        self.calcular_balance(tree,balance_pesos_label, balance_dolares_label)
+        self.calcular_balance(tree, balance_pesos_label, balance_dolares_label, ingreso_ars, egreso_ars, ingreso_usd, egreso_usd)
         self.actualizar_tree(tree)
 
     def actualizar_tree(self, treeview):
@@ -77,11 +77,11 @@ class Abmc():
             treeview.insert("", "end", text=row.id, values=(row.fecha,row.tipo,row.monto,row.descripcion,row.moneda),tags=(row.tipo,row.moneda))
         
         
-    def mostrar(self, tree, balance_pesos_label, balance_dolares_label):
+    def mostrar(self, tree, balance_pesos_label, balance_dolares_label, ingreso_ars, egreso_ars, ingreso_usd, egreso_usd):
         self.actualizar_tree(tree)
-        self.calcular_balance(tree,balance_pesos_label, balance_dolares_label)
+        self.calcular_balance(tree, balance_pesos_label, balance_dolares_label, ingreso_ars, egreso_ars, ingreso_usd, egreso_usd)
 
-    def modificar(self, fecha,tipo,monto,descripcion,moneda, tree, balance_pesos_label, balance_dolares_label): 
+    def modificar(self, fecha, tipo, monto, descripcion, moneda, tree, balance_pesos_label, balance_dolares_label, ingreso_ars, egreso_ars, ingreso_usd, egreso_usd): 
         fila = tree.selection()
         if not fila:
             self.mensaje_fila()# Si no selecciona una fila, le aviso que seleccione una fila
@@ -93,7 +93,7 @@ class Abmc():
             actualizar.execute()
             self.mensaje_modificar()
             self.actualizar_tree(tree)
-            self.calcular_balance(tree,balance_pesos_label, balance_dolares_label)
+            self.calcular_balance(tree, balance_pesos_label, balance_dolares_label, ingreso_ars, egreso_ars, ingreso_usd, egreso_usd)
         self.vaciarcampos(tipo,monto,descripcion,fecha,moneda)
 
     def vaciarcampos(self,tipo,monto,descripcion,fecha,moneda):
@@ -123,7 +123,7 @@ class Abmc():
         self.user_entry = tkint.Entry(self.new_window)
         self.user_entry.grid(row=0, column=1, padx=5, pady=5)
         # Botón para crear la planilla de datos con el nombre ingresado
-        tkint.Button(self.new_window, text="Crear planilla de datos", command=self.create_db_with_username(master)).grid(row=1, column=1, padx=5, pady=5)      
+        tkint.Button(self.new_window, text="Crear planilla de datos", command=lambda: self.create_db_with_username(master)).grid(row=1, column=1, padx=5, pady=5)      
     
     def create_db_with_username(self,master):
         user_input = self.user_entry.get()
@@ -173,7 +173,7 @@ class Abmc():
             return None
         return file_path
         
-    def calcular_balance(self,tree,balance_pesos_label, balance_dolares_label):
+    def calcular_balance(self,tree,balance_pesos_label, balance_dolares_label,ingreso_ars, egreso_ars, ingreso_usd, egreso_usd):
         ars_ingresos= 0.0
         ars_egresos = 0.0
         usd_ingresos = 0.0
@@ -192,6 +192,10 @@ class Abmc():
         balance_dolares = usd_ingresos - usd_egresos
         balance_pesos_label.config(text=f"Balance ARS: {balance_pesos:.2f}")
         balance_dolares_label.config(text=f"Balance USD: {balance_dolares:.2f}")
+        ingreso_ars.config(text=f"Ingreso ARS: {ars_ingresos:.2f}")
+        egreso_ars.config(text=f"Egreso ARS: {ars_egresos:.2f}")
+        ingreso_usd.config(text=f"Ingreso USD: {usd_ingresos:.2f}")
+        egreso_usd.config(text=f"Egreso USD: {usd_egresos:.2f}")
     
     @staticmethod
     def mensaje_alta():
